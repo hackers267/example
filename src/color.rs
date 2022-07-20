@@ -15,6 +15,27 @@ mod test {
     }
 }
 
+#[derive(Eq, PartialEq)]
+enum Color {
+    Red,
+    Yellow,
+}
+
+impl Color {
+    fn to_fg_color(&self) -> &str {
+        match self {
+            Color::Red => "31",
+            Color::Yellow => "33",
+        }
+    }
+    fn to_bg_color(&self) -> &str {
+        match self {
+            Color::Red => "41",
+            Color::Yellow => "43",
+        }
+    }
+}
+
 trait Colorize {
     const FG_RED: &'static str = "31";
     const FG_YELLOW: &'static str = "33";
@@ -22,30 +43,32 @@ trait Colorize {
     const BG_YELLOW: &'static str = "43";
     fn red(self) -> ColorString;
     fn yellow(self) -> ColorString;
+    fn color(self, color: Color) -> ColorString;
     fn on_yellow(self) -> ColorString;
     fn on_red(self) -> ColorString;
+    fn on_color(self, color: Color) -> ColorString;
 }
 
 #[derive(Default, Eq, PartialEq)]
 struct ColorString {
     input: String,
-    fgcolor: String,
-    bgcolor: String,
+    fgcolor: Option<Color>,
+    bgcolor: Option<Color>,
 }
 
 impl Display for ColorString {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str("\x1B[").unwrap();
         let mut wrote = false;
-        if !self.fgcolor.is_empty() {
-            f.write_str(&self.fgcolor).unwrap();
+        if let Some(color) = &self.fgcolor {
+            f.write_str(color.to_fg_color()).unwrap();
             wrote = true;
         }
-        if !self.bgcolor.is_empty() {
+        if let Some(color) = &self.bgcolor {
             if wrote {
                 f.write_str(";").unwrap();
             }
-            f.write_str(&self.bgcolor).unwrap();
+            f.write_str(color.to_bg_color()).unwrap();
         }
         f.write_str("m").unwrap();
         f.write_str(&self.input).unwrap();
@@ -55,62 +78,64 @@ impl Display for ColorString {
 
 impl Colorize for &str {
     fn red(self) -> ColorString {
-        ColorString {
-            input: self.to_string(),
-            fgcolor: ColorString::FG_RED.to_string(),
-            ..ColorString::default()
-        }
+        self.color(Color::Red)
     }
 
     fn yellow(self) -> ColorString {
+        self.color(Color::Yellow)
+    }
+
+    fn color(self, color: Color) -> ColorString {
         ColorString {
             input: self.to_string(),
-            fgcolor: ColorString::FG_YELLOW.to_string(),
+            fgcolor: Some(color),
             ..ColorString::default()
         }
     }
 
     fn on_yellow(self) -> ColorString {
-        ColorString {
-            input: self.to_string(),
-            bgcolor: ColorString::BG_YELLOW.to_string(),
-            ..ColorString::default()
-        }
+        self.on_color(Color::Yellow)
     }
 
     fn on_red(self) -> ColorString {
+        self.on_color(Color::Red)
+    }
+
+    fn on_color(self, color: Color) -> ColorString {
         ColorString {
             input: self.to_string(),
-            bgcolor: ColorString::BG_RED.to_string(),
+            bgcolor: Some(color),
             ..ColorString::default()
         }
     }
 }
 impl Colorize for ColorString {
     fn red(self) -> Self {
-        Self {
-            fgcolor: ColorString::FG_RED.to_string(),
-            ..self
-        }
+        self.color(Color::Red)
     }
 
     fn yellow(self) -> Self {
+        self.color(Color::Yellow)
+    }
+
+    fn color(self, color: Color) -> Self {
         Self {
-            fgcolor: ColorString::FG_YELLOW.to_string(),
+            fgcolor: Some(color),
             ..self
         }
     }
 
     fn on_yellow(self) -> Self {
-        Self {
-            bgcolor: ColorString::BG_YELLOW.to_string(),
-            ..self
-        }
+        self.on_color(Color::Yellow)
     }
 
     fn on_red(self) -> Self {
+        self.on_color(Color::Red)
+    }
+
+    fn on_color(self, color: Color) -> Self {
         Self {
-            bgcolor: ColorString::BG_RED.to_string(),
+            bgcolor: Some(color),
             ..self
         }
     }
